@@ -1,0 +1,42 @@
+# Secrets & local config
+.env
+.env.local
+*.env.local
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# App runtime data
+data/
+*.db
+*.log
+
+# Build & distribution
+build/
+dist/
+release/
+*.spec.bak
+DesktopPet.exe
+DesktopPet.lnk
+StartDesktopPet.lnk
+
+# IDE / OS
+.idea/
+.vscode/
+.cursor/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Optional vendored / temp
+_vendor/
+*.tmp
+*.bak
