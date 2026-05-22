@@ -118,15 +118,15 @@ def reconcile_character_pack(
     - Folder missing but signature matches another folder → update pack name (rename)
     - Only one valid pack → use it
     """
-    from config.character_config import CHARACTER_PACK, resolve_character_dir
+    from config.character_config import CHARACTER_PACK
 
     lib = character_library_root()
     if not lib.is_dir():
         return None
 
-    pack = (CHARACTER_PACK or "").strip()
+    pack = os.getenv("CHARACTER_PACK", CHARACTER_PACK).strip()
     sig_env = os.getenv("CHARACTER_PACK_SIG", "").strip()
-    resolved = resolve_character_dir()
+    resolved = pack_dir_for_name(pack)
 
     if resolved and resolved.is_dir() and _has_sprite_files(resolved):
         sig = compute_pack_signature(resolved)

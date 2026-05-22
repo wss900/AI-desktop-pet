@@ -53,11 +53,8 @@ def test_reconcile_after_rename(tmp_path, monkeypatch):
         "config.pack_discovery.character_library_root", lambda: lib
     )
     monkeypatch.chdir(tmp_path)
-
-    import os
-
-    os.environ["CHARACTER_PACK"] = "旧名"
-    os.environ["CHARACTER_PACK_SIG"] = sig
+    monkeypatch.setenv("CHARACTER_PACK", "旧名")
+    monkeypatch.setenv("CHARACTER_PACK_SIG", sig)
 
     result = reconcile_character_pack(write_env=True)
     assert result is not None
