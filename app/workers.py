@@ -30,3 +30,23 @@ class ChatWorker(QObject):
             self.cancelled.emit(e.partial_display or "")
         except Exception as e:
             self.error.emit(friendly_chat_error(e))
+
+
+class GreetingWorker(QObject):
+    finished = Signal(str)
+    failed = Signal()
+
+    def __init__(self, chat_service, hours_away: float):
+        super().__init__()
+        self._chat = chat_service
+        self._hours_away = hours_away
+
+    def run(self) -> None:
+        try:
+            text = self._chat.generate_greeting(self._hours_away)
+            if text:
+                self.finished.emit(text)
+            else:
+                self.failed.emit()
+        except Exception:
+            self.failed.emit()

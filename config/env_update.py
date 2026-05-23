@@ -66,26 +66,28 @@ def apply_preset(
     preset: CharacterPreset,
     *,
     remember_skip_picker: bool,
-    survival_mode: bool | None = None,
+    run_mode: str | None = None,
     chat_api: "ChatApiConfig | None" = None,
+    survival_mode: bool | None = None,
     survival_memory: bool | None = None,
 ) -> None:
     from config.chat_api_config import ChatApiConfig, chat_api_to_env
-    from config.pet_mode import survival_memory_env_value
+    from config.pet_mode import run_mode_env_updates
 
     env = preset_to_env(preset)
     if remember_skip_picker:
         env["SHOW_CHARACTER_PICKER"] = "0"
     else:
         env["SHOW_CHARACTER_PICKER"] = "1"
-    if survival_mode is not None:
-        from config.pet_mode import pet_mode_env_value
-
-        env["PET_MODE"] = pet_mode_env_value(survival=survival_mode)
-    if survival_memory is not None:
-        env["SURVIVAL_MEMORY_MODE"] = survival_memory_env_value(
-            enabled=survival_memory
-        )
+    if run_mode is not None:
+        env.update(run_mode_env_updates(run_mode=run_mode))
+    elif survival_mode is not None:
+        legacy = "entertainment"
+        if survival_mode and survival_memory:
+            legacy = "companion"
+        elif survival_mode:
+            legacy = "entertainment"
+        env.update(run_mode_env_updates(run_mode=legacy))
     if chat_api is not None:
         env.update(chat_api_to_env(chat_api))
         update_env_file(env, drop_keys=LEGACY_CHAT_ENV_KEYS)
@@ -102,7 +104,9 @@ def reload_config_modules() -> None:
         "config.character_presets",
         "config.pack_discovery",
         "config.pet_mode",
+        "config.companion",
         "brain.prompts",
+        "brain.persona_behavior",
         "brain.chat",
         "pet.pack_prompt",
     ):
@@ -120,25 +124,26 @@ def should_show_character_picker() -> bool:
 
 def apply_settings(
     *,
-    survival_mode: bool,
+    run_mode: str,
     chat_api: "ChatApiConfig",
     show_character_picker: bool,
     max_height: int | None = None,
-    survival_memory: bool | None = None,
+    companion_enabled: bool | None = None,
 ) -> None:
     """Save mode / API / picker flag without changing character pack."""
     from config.chat_api_config import ChatApiConfig, chat_api_to_env
     from config.character_config import clamp_character_height
-    from config.pet_mode import pet_mode_env_value, survival_memory_env_value
+    from config.companion import companion_to_env
+    from config.pet_mode import run_mode_env_updates
 
     env: dict[str, str] = {
-        "PET_MODE": pet_mode_env_value(survival=survival_mode),
         "SHOW_CHARACTER_PICKER": "1" if show_character_picker else "0",
     }
-    if survival_memory is not None:
-        env["SURVIVAL_MEMORY_MODE"] = survival_memory_env_value(enabled=survival_memory)
+    env.update(run_mode_env_updates(run_mode=run_mode))
     if max_height is not None:
         env["CHARACTER_MAX_HEIGHT"] = str(clamp_character_height(max_height))
+    if companion_enabled is not None:
+        env.update(companion_to_env(enabled=companion_enabled))
     env.update(chat_api_to_env(chat_api))
     update_env_file(env, drop_keys=LEGACY_CHAT_ENV_KEYS)
     load_dotenv(ENV_PATH, override=True)

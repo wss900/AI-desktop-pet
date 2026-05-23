@@ -14,6 +14,11 @@ from brain.tools import (
     validate_reminder_datetime,
 )
 from config.chat_api_config import load_chat_api_config
+from config.companion import (
+    chat_context_limit,
+    chat_history_keep,
+    memory_recent_limit,
+)
 from config.settings import PET_NAME, get_character_display_name
 from memory.store import MemoryStore
 
@@ -43,14 +48,55 @@ class ChatService:
         pet_name = get_character_display_name() or self.memory.get_pet_name() or PET_NAME
         user_name = self.memory.get_user_name()
         system = build_system_prompt(
-            pet_name, user_name, self.memory.recent_memories()
+            pet_name,
+            user_name,
+            self.memory.recent_memories(memory_recent_limit()),
         )
         system += "\n\n" + format_reminders_for_prompt(reminders)
         messages = [{"role": "system", "content": system}]
-        for m in self.memory.recent_chats(10):
+        for m in self.memory.recent_chats(chat_context_limit()):
             messages.append({"role": m["role"], "content": m["content"]})
         messages.append({"role": "user", "content": user_text})
         return messages
+
+    def generate_greeting(self, hours_away: float) -> str | None:
+        if not self._client:
+            return None
+        pet_name = get_character_display_name() or self.memory.get_pet_name() or PET_NAME
+        user_name = self.memory.get_user_name()
+        system = build_system_prompt(
+            pet_name,
+            user_name,
+            self.memory.recent_memories(memory_recent_limit()),
+        )
+        system += (
+            "\n\n此刻用户刚打开桌宠。请用 1～2 句口语简短打招呼，"
+            "像久别重逢的伙伴，不要输出 JSON，不要长篇。"
+        )
+        if hours_away >= 1:
+            away_hint = f"我们大约 {int(hours_away)} 小时没见了。"
+        else:
+            away_hint = "用户今天再次打开桌宠。"
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": away_hint + "请打招呼。"},
+        ]
+        try:
+            resp = self._client.chat.completions.create(
+                model=self._model,
+                messages=messages,
+                max_tokens=120,
+                stream=False,
+            )
+        except Exception:
+            return None
+        text = (resp.choices[0].message.content or "").strip()
+        if not text:
+            return None
+        _, _, memory = parse_actions(text)
+        if memory:
+            self.apply_memory_action(memory)
+        return text.split("MEMORY_JSON")[0].split("REMINDER_JSON")[0].strip()
 
     def chat_stream(
         self,
@@ -90,7 +136,7 @@ class ChatService:
         display, reminder, memory = parse_actions(raw)
         self.memory.add_chat("user", user_text)
         self.memory.add_chat("assistant", display)
-        self.memory.trim_chats()
+        self.memory.trim_chats(chat_history_keep())
         return display, reminder, memory
 
     def apply_memory_action(self, action: MemoryAction) -> None:

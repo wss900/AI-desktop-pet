@@ -8,6 +8,8 @@ from typing import Callable
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QColor, QPainter, QPixmap, QPen
 
+from pet.pack_food import FoodDef, default_builtin_foods, get_food_catalog
+
 FOOD_COUNT = 5
 _FOOD_NAMES = ("鱼", "肉", "饭", "果", "菜")
 
@@ -71,7 +73,7 @@ _FOOD_DRAWERS: tuple[Callable[[QPainter, int], None], ...] = (
 
 
 def make_food_pixmap(kind: int | None = None, size: int = 44) -> QPixmap:
-    """kind 0..4；None 则随机一种。"""
+    """kind 0..4；None 则随机一种（内置绘制）。"""
     if kind is None:
         kind = random.randint(0, FOOD_COUNT - 1)
     kind = int(kind) % FOOD_COUNT
@@ -84,11 +86,34 @@ def make_food_pixmap(kind: int | None = None, size: int = 44) -> QPixmap:
     return pix
 
 
+def make_food_pixmap_for(item: FoodDef, size: int = 44) -> QPixmap:
+    if item.image_path and item.image_path.is_file():
+        loaded = QPixmap(str(item.image_path))
+        if not loaded.isNull():
+            return loaded.scaled(
+                size,
+                size,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+    kind = item.builtin_kind if item.builtin_kind is not None else random.randint(0, FOOD_COUNT - 1)
+    return make_food_pixmap(kind, size=size)
+
+
+def random_food() -> FoodDef:
+    catalog = get_food_catalog()
+    return random.choice(catalog)
+
+
 def random_food_kind() -> int:
     return random.randint(0, FOOD_COUNT - 1)
 
 
-def food_tooltip(kind: int) -> str:
+def food_tooltip(item: FoodDef) -> str:
+    return f"{item.name} · 拖到宠物身上喂食"
+
+
+def food_tooltip_kind(kind: int) -> str:
     return f"{_FOOD_NAMES[kind % FOOD_COUNT]} · 拖到宠物身上喂食"
 
 

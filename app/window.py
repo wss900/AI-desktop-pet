@@ -10,6 +10,7 @@ from PySide6.QtGui import QColor, QDragEnterEvent, QDropEvent, QPixmap
 from PySide6.QtWidgets import QLabel, QMenu, QVBoxLayout, QWidget
 
 from app.feed_popup import FeedPopupLabel
+from app.speech_bubble import SpeechBubbleLabel
 from app.hp_bar import HpBarWidget
 from config.settings import PET_HEIGHT, PET_WIDTH
 from config.pet_mode import is_survival_mode
@@ -61,6 +62,7 @@ class PetWindow(QWidget):
         self._hp_bar = HpBarWidget(self)
         self._hp_bar.set_survival_visible(self._survival_mode)
         self._feed_popup = FeedPopupLabel(self)
+        self._speech_bubble = SpeechBubbleLabel(self)
         self._sprite = QLabel(self)
         self._sprite.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self._sprite.setScaledContents(False)
@@ -123,6 +125,8 @@ class PetWindow(QWidget):
         self._controller.set_size(w, total_h)
         if self._feed_popup.isVisible():
             self._position_feed_popup()
+        if self._speech_bubble.isVisible():
+            self._position_speech_bubble()
 
     def update_hp(self, hp: float, hp_max: float, starved: bool = False) -> None:
         """由 vitality.hp_changed 连接；第三参须为位置参数，勿用 keyword-only。"""
@@ -145,6 +149,28 @@ class PetWindow(QWidget):
 
     def show_feed_bonus(self, delta: float, *, hp: float = 0, starved: bool = False) -> None:
         self.show_hp_delta(delta, hp=hp, starved=starved)
+
+    def show_speech_bubble(
+        self,
+        text: str,
+        *,
+        duration_ms: int = 6000,
+        clickable: bool = False,
+        on_click: Callable[[], None] | None = None,
+    ) -> None:
+        self._speech_bubble.show_message(
+            text,
+            duration_ms=duration_ms,
+            clickable=clickable,
+            on_click=on_click,
+        )
+        self._position_speech_bubble()
+
+    def _position_speech_bubble(self) -> None:
+        bar_h = self._hp_bar.height() if self._survival_mode else 0
+        x = max(0, (self.width() - self._speech_bubble.width()) // 2)
+        y = max(0, bar_h - self._speech_bubble.height() - 4)
+        self._speech_bubble.move(x, y)
 
     def _position_feed_popup(self) -> None:
         bar_h = self._hp_bar.height()

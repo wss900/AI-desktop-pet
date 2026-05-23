@@ -41,6 +41,18 @@ def pack_dir_for_name(pack_name: str) -> Path | None:
     return path if path.is_dir() else None
 
 
+def pack_preview_image(pack_name: str) -> Path | None:
+    """First sprite image in a pack folder for list/thumbnail preview."""
+    pack_dir = pack_dir_for_name(pack_name)
+    if pack_dir is None:
+        return None
+    for pattern in ("*.png", "gif/*.png", "*.gif", "gif/*.gif"):
+        hits = sorted(pack_dir.glob(pattern))
+        if hits:
+            return hits[0]
+    return None
+
+
 def _has_sprite_files(folder: Path) -> bool:
     if not folder.is_dir():
         return False

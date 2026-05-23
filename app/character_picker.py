@@ -37,7 +37,7 @@ from config.chat_api_config import (
     EXAMPLE_MODELS,
     load_chat_api_config,
 )
-from config.pet_mode import is_survival_memory_mode, is_survival_mode
+from config.pet_mode import is_companion_run_mode, resolve_run_mode
 
 
 class CharacterPickerDialog(QDialog):
@@ -45,8 +45,7 @@ class CharacterPickerDialog(QDialog):
         super().__init__(parent)
         self._selected: CharacterPreset | None = None
         self._remember = False
-        self._survival_mode = True
-        self._survival_memory = is_survival_memory_mode()
+        self._run_mode = resolve_run_mode()
 
         self.setWindowTitle("选择形象")
         self.setWindowFlags(
@@ -69,33 +68,26 @@ class CharacterPickerDialog(QDialog):
         root.addWidget(mode_title)
         mode_row = QHBoxLayout()
         self._mode_group = QButtonGroup(self)
-        self._rb_survival = QRadioButton("生存模式")
-        self._rb_normal = QRadioButton("普通模式")
-        self._mode_group.addButton(self._rb_survival, 1)
-        self._mode_group.addButton(self._rb_normal, 0)
-        if is_survival_mode():
-            self._rb_survival.setChecked(True)
+        self._rb_companion = QRadioButton("陪伴模式")
+        self._rb_entertainment = QRadioButton("娱乐模式")
+        self._mode_group.addButton(self._rb_companion, 1)
+        self._mode_group.addButton(self._rb_entertainment, 0)
+        if is_companion_run_mode():
+            self._rb_companion.setChecked(True)
         else:
-            self._rb_normal.setChecked(True)
+            self._rb_entertainment.setChecked(True)
         self._mode_group.idClicked.connect(self._on_mode_clicked)
-        mode_row.addWidget(self._rb_survival)
-        mode_row.addWidget(self._rb_normal)
+        self._on_mode_clicked(1 if is_companion_run_mode() else 0)
+        mode_row.addWidget(self._rb_companion)
+        mode_row.addWidget(self._rb_entertainment)
         mode_row.addStretch()
         root.addLayout(mode_row)
         mode_hint = QLabel(
-            "生存：顶部 HP 条、喂食与饿死复活 · 普通：仅陪伴与聊天，无 HP"
+            "均有 HP、喂食与复活 · 陪伴：关闭程序也计时 · 娱乐：仅运行时扣 HP"
         )
         mode_hint.setObjectName("modeHint")
         mode_hint.setWordWrap(True)
         root.addWidget(mode_hint)
-
-        self._memory_cb = QCheckBox("生存记忆（关闭程序也计时，可能离线饿死）")
-        self._memory_cb.setChecked(self._survival_memory)
-        root.addWidget(self._memory_cb)
-        self._rb_normal.toggled.connect(
-            lambda on: self._memory_cb.setEnabled(not on)
-        )
-        self._memory_cb.setEnabled(self._rb_survival.isChecked())
 
         api_title = QLabel("聊天 API（OpenAI 兼容）")
         api_title.setObjectName("previewTitle")
@@ -130,6 +122,15 @@ class CharacterPickerDialog(QDialog):
         api_hint.setWordWrap(True)
         root.addWidget(api_hint)
 
+        persona_hint = QLabel(
+            "推荐在形象文件夹内添加 人设.txt（或 persona.txt）定义 AI 性格；"
+            "可选 问候.txt / greetings.txt 自定义启动与陪伴气泡文案。"
+            "参考 形象/persona.example.txt。"
+        )
+        persona_hint.setObjectName("modeHint")
+        persona_hint.setWordWrap(True)
+        root.addWidget(persona_hint)
+
         body = QHBoxLayout()
         root.addLayout(body, stretch=1)
 
@@ -157,7 +158,7 @@ class CharacterPickerDialog(QDialog):
         body.addLayout(preview_col, stretch=2)
 
         self._remember_cb = QCheckBox(
-            "下次启动不再询问（仍可在托盘「设置」或「切换形象」里修改）"
+            "下次启动不再询问（仍可在托盘「设置」里切换形象）"
         )
         root.addWidget(self._remember_cb)
 
@@ -216,11 +217,8 @@ class CharacterPickerDialog(QDialog):
     def remember_skip_picker(self) -> bool:
         return self._remember
 
-    def survival_mode_selected(self) -> bool:
-        return self._survival_mode
-
-    def survival_memory_selected(self) -> bool:
-        return self._memory_cb.isChecked()
+    def run_mode_selected(self) -> str:
+        return self._run_mode
 
     def chat_api_config(self) -> ChatApiConfig:
         return ChatApiConfig(
@@ -230,7 +228,7 @@ class CharacterPickerDialog(QDialog):
         )
 
     def _on_mode_clicked(self, button_id: int) -> None:
-        self._survival_mode = button_id == 1
+        self._run_mode = "companion" if button_id == 1 else "entertainment"
 
     def _on_row_changed(self, row: int) -> None:
         if row < 0 or row >= len(self._presets):
@@ -260,8 +258,7 @@ class CharacterPickerDialog(QDialog):
             return
         self._selected = self._presets[row]
         self._remember = self._remember_cb.isChecked()
-        self._survival_mode = self._rb_survival.isChecked()
-        self._survival_memory = self._memory_cb.isChecked()
+        self._run_mode = "companion" if self._rb_companion.isChecked() else "entertainment"
         self.accept()
 
 
@@ -281,9 +278,8 @@ def run_startup_character_selection() -> bool:
     apply_preset(
         preset,
         remember_skip_picker=dlg.remember_skip_picker(),
-        survival_mode=dlg.survival_mode_selected(),
+        run_mode=dlg.run_mode_selected(),
         chat_api=dlg.chat_api_config(),
-        survival_memory=dlg.survival_memory_selected(),
     )
     return True
 
@@ -301,8 +297,7 @@ def run_switch_character_dialog(parent=None) -> bool:
     apply_preset(
         preset,
         remember_skip_picker=dlg.remember_skip_picker(),
-        survival_mode=dlg.survival_mode_selected(),
+        run_mode=dlg.run_mode_selected(),
         chat_api=dlg.chat_api_config(),
-        survival_memory=dlg.survival_memory_selected(),
     )
     return True

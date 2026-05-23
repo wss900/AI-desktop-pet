@@ -26,14 +26,6 @@ class TrayIcon(QSystemTrayIcon):
         center_action.triggered.connect(self._app.center_pet)
         menu.addAction(center_action)
 
-        import_action = QAction("导入形象文件夹…", menu)
-        import_action.triggered.connect(self._app.pick_and_import_pack)
-        menu.addAction(import_action)
-
-        switch_action = QAction("切换形象", menu)
-        switch_action.triggered.connect(self._app.switch_character)
-        menu.addAction(switch_action)
-
         settings_action = QAction("设置…", menu)
         settings_action.triggered.connect(self._app.open_settings)
         menu.addAction(settings_action)

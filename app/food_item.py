@@ -7,14 +7,15 @@ from typing import Callable
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QLabel, QWidget
 
-from pet.vitality_art import food_tooltip, make_food_pixmap
+from pet.pack_food import FoodDef
+from pet.vitality_art import food_tooltip, make_food_pixmap_for
 
 
 class FoodItemWindow(QWidget):
     def __init__(
         self,
         desktop_pos: QPoint,
-        food_kind: int,
+        food: FoodDef,
         *,
         pet_window: QWidget,
         on_fed: Callable[[], None],
@@ -23,8 +24,9 @@ class FoodItemWindow(QWidget):
         super().__init__(parent)
         self._pet_window = pet_window
         self._on_fed = on_fed
+        self._food = food
         self._drag_offset: QPoint | None = None
-        pix = make_food_pixmap(food_kind)
+        pix = make_food_pixmap_for(food)
 
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
@@ -33,7 +35,7 @@ class FoodItemWindow(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setFixedSize(pix.size())
-        self.setToolTip(food_tooltip(food_kind))
+        self.setToolTip(food_tooltip(food))
 
         self._label = QLabel(self)
         self._label.setPixmap(pix)
@@ -42,6 +44,9 @@ class FoodItemWindow(QWidget):
         self.move(desktop_pos.x(), desktop_pos.y())
         self.show()
         self.raise_()
+
+    def food(self) -> FoodDef:
+        return self._food
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:

@@ -2,7 +2,11 @@ import os
 
 from config.character_config import CHARACTER_PACK
 from config.settings import PET_NAME
-from pet.pack_prompt import format_pack_prompt, load_pack_persona_prompt
+from pet.pack_prompt import (
+    format_pack_prompt,
+    load_pack_persona_chat_prompt,
+    load_pack_persona_prompt,
+)
 
 # auto | dog | girl | custom（形象包内 persona.txt 时可用 custom）
 CHARACTER_PERSONA = os.getenv("CHARACTER_PERSONA", "auto").strip().lower()
@@ -25,7 +29,7 @@ def resolve_persona_kind() -> str:
 
 
 def _persona_body(kind: str, name: str) -> str:
-    pack_text = load_pack_persona_prompt()
+    pack_text = load_pack_persona_chat_prompt()
     if pack_text:
         return format_pack_prompt(pack_text, name)
 
@@ -86,9 +90,17 @@ def build_system_prompt(
     else:
         chat_rule = "陪用户聊天（每次 1～10 句，专业问题可稍展开，仍保持桌面伙伴语气）"
 
+    companion_line = (
+        "你是用户的桌面陪伴伙伴：记得之前聊过的事，久别重逢时自然关心；"
+        "语气温暖、不过度打扰。用户分享重要信息时，可在回复末尾输出 "
+        'MEMORY_JSON: {"memory":"简短事实"} 以便长期记住。'
+    )
+
     return f"""{_persona_body(kind, name)}
 {user_line}
 {mem_block}{persona_reset}
+
+{companion_line}
 
 能力：
 - {chat_rule}
