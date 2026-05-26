@@ -37,7 +37,12 @@ class ChatService:
         self._client: OpenAI | None = None
         api = load_chat_api_config()
         if api.is_complete():
-            self._client = OpenAI(api_key=api.api_key, base_url=api.base_url)
+            self._client = OpenAI(
+                api_key=api.api_key,
+                base_url=api.base_url,
+                timeout=30.0,
+                max_retries=1,
+            )
         self._model = api.model if api.is_complete() else ""
 
     @property
@@ -120,17 +125,20 @@ class ChatService:
             messages=messages,
             stream=True,
         )
-        for chunk in stream:
-            if should_cancel and should_cancel():
-                partial = "".join(chunks)
-                display, _, _ = parse_actions(partial)
-                raise ChatCancelled(display)
+        try:
+            for chunk in stream:
+                if should_cancel and should_cancel():
+                    partial = "".join(chunks)
+                    display, _, _ = parse_actions(partial)
+                    raise ChatCancelled(display)
 
-            delta = chunk.choices[0].delta.content or ""
-            if delta:
-                chunks.append(delta)
-                if on_token:
-                    on_token(delta)
+                delta = chunk.choices[0].delta.content or ""
+                if delta:
+                    chunks.append(delta)
+                    if on_token:
+                        on_token(delta)
+        finally:
+            stream.close()
 
         raw = "".join(chunks)
         display, reminder, memory = parse_actions(raw)

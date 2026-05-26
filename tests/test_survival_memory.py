@@ -16,7 +16,7 @@ def test_survival_memory_env_flag():
 def test_offline_decay_on_load(tmp_path, monkeypatch):
     db = tmp_path / "pet.db"
     monkeypatch.setattr("config.settings.DB_PATH", db)
-    monkeypatch.setenv("SURVIVAL_MEMORY_MODE", "1")
+    monkeypatch.setenv("PET_MODE", "companion")
 
     import importlib
     import config.pet_mode as pet_mode
@@ -39,7 +39,7 @@ def test_offline_decay_on_load(tmp_path, monkeypatch):
 def test_no_offline_decay_when_disabled(tmp_path, monkeypatch):
     db = tmp_path / "pet.db"
     monkeypatch.setattr("config.settings.DB_PATH", db)
-    monkeypatch.setenv("SURVIVAL_MEMORY_MODE", "0")
+    monkeypatch.setenv("PET_MODE", "entertainment")
 
     import importlib
     import config.pet_mode as pet_mode

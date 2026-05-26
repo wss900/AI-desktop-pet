@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.dialog_theme import apply_content_light_theme
+
 
 class CharacterManagePanel(QWidget):
     switch_dialog_requested = Signal()
@@ -24,6 +26,7 @@ class CharacterManagePanel(QWidget):
     ):
         super().__init__(parent)
         self._current_pack = current_pack.strip()
+        apply_content_light_theme(self)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

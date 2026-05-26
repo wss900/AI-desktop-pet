@@ -1,146 +1,75 @@
 """Load character pack sprites and drive triggers (hover / random).
 
-
-
 Supports per-state GIF animation when a .gif exists; PNG-only packs behave as before.
-
 """
-
-
 
 from __future__ import annotations
 
-
-
 import random
-
 from dataclasses import dataclass
 
-
-
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
-
 from PySide6.QtGui import QPixmap, QTransform
 
-
-
 from config.character_config import (
-
     MOOD_SWITCH_MS,
-
     SpriteBinding,
-
     Trigger,
-
     load_sprite_bindings,
-
     prefer_gif_playback,
-
     resolve_character_dir,
-
 )
-
 from config.settings import PET_HEIGHT, PET_WIDTH
-
 from pet.animator import _make_placeholder_pixmap
-
 from pet.gif_clip import GifClip
-
 from pet.image_alpha import load_transparent_pixmap
 
 
-
-
-
 @dataclass
-
 class _StateMedia:
-
-  static: QPixmap
-
-  gif: GifClip | None
-
-  animate: bool
-
-
-
+    static: QPixmap
+    gif: GifClip | None
+    animate: bool
 
 
 class CharacterAssets(QObject):
-
     pixmap_changed = Signal(QPixmap)
     size_changed = Signal(int, int)
 
-
-
     def __init__(self, parent=None):
-
         super().__init__(parent)
-
         self._dir_path = resolve_character_dir()
-
         self._bindings: list[SpriteBinding] = []
-
         self._hover: dict[str, _StateMedia] = {}
-
         self._random: dict[str, _StateMedia] = {}
-
         self._drag: dict[str, _StateMedia] = {}
-
         self._hovering = False
-
         self._dragging = False
-
         self._last_random: str | None = None
-
         self._last_hover: str | None = None
-
         self._last_drag: str | None = None
-
         self._facing = 1
-
         self._width = PET_WIDTH
-
         self._height = PET_HEIGHT
-
         self._ready = False
-
         self._active_gif: GifClip | None = None
-
         self._current_pix = QPixmap()
 
-
-
         self._mood_timer = QTimer(self)
-
         self._mood_timer.timeout.connect(self._pick_random)
 
-
-
         self._load()
-
         if self._ready:
-
             if self._random:
-
                 self._mood_timer.start(MOOD_SWITCH_MS)
-
                 self._pick_random()
-
             elif self._hover:
-
                 self._show_state(next(iter(self._hover.values())))
-
         else:
-
             self._emit_pixmap(_make_placeholder_pixmap(1))
 
-
-
     def stop(self) -> None:
-
         self._mood_timer.stop()
-
         self._stop_gif()
 
     def resume(self) -> None:
@@ -178,310 +107,157 @@ class CharacterAssets(QObject):
             self._emit_pixmap(_make_placeholder_pixmap(self._facing))
         return self._ready
 
-
-
     @property
-
     def is_ready(self) -> bool:
-
         return self._ready
 
-
-
     @property
-
     def pack_path(self) -> str:
-
         return str(self._dir_path) if self._dir_path else ""
 
-
-
     @property
-
     def width(self) -> int:
-
         return self._width
 
-
-
     @property
-
     def height(self) -> int:
-
         return self._height
 
-
-
     def _load(self) -> None:
-
         from config.character_config import CHARACTER_MAX_HEIGHT
 
-
-
         dir_path, bindings = load_sprite_bindings()
-
         self._dir_path = dir_path
-
         self._bindings = bindings
-
         if not dir_path or not bindings:
-
             return
-
-
 
         use_gif = prefer_gif_playback(bindings)
-
         max_h = CHARACTER_MAX_HEIGHT
 
-
-
         for b in bindings:
-
             static = QPixmap()
-
             if b.png_path:
-
                 static = load_transparent_pixmap(str(b.png_path), max_h)
-
             gif_clip: GifClip | None = None
-
             animate = False
-
             if b.gif_path and use_gif:
-
                 gif_clip = GifClip(self)
-
                 if gif_clip.load(str(b.gif_path), max_h):
-
                     gif_clip.frame_ready.connect(self._on_gif_frame)
-
                     animate = True
-
                 else:
-
                     gif_clip = None
-
             if static.isNull() and gif_clip and gif_clip.has_frames:
-
                 static = gif_clip.poster
-
             if static.isNull() and not (gif_clip and gif_clip.has_frames):
-
                 continue
-
             media = _StateMedia(static=static, gif=gif_clip, animate=animate)
-
             if b.trigger == Trigger.HOVER:
-
                 self._hover[b.name] = media
-
             elif b.trigger == Trigger.DRAG:
-
                 self._drag[b.name] = media
-
             else:
-
                 self._random[b.name] = media
 
-
-
         self._ready = bool(self._hover or self._random or self._drag)
-
         if self._ready:
-
             sample = self._first_media()
-
             if sample and not sample.static.isNull():
-
                 self._width = sample.static.width()
-
                 self._height = sample.static.height()
 
-
-
     def _first_media(self) -> _StateMedia | None:
-
         if self._hover:
-
             return next(iter(self._hover.values()))
-
         if self._random:
-
             return next(iter(self._random.values()))
-
         return None
 
-
-
     def _stop_gif(self) -> None:
-
         if self._active_gif:
-
             self._active_gif.stop()
-
             self._active_gif = None
 
-
-
     def _on_gif_frame(self, pix: QPixmap) -> None:
-
         self._emit_pixmap(pix)
 
-
-
     def set_facing(self, facing: int) -> None:
-
         if self._facing == facing:
-
             return
-
         self._facing = facing
-
         if not self._current_pix.isNull():
-
             self._emit_pixmap(self._current_pix)
 
-
-
     def set_hover(self, hovering: bool) -> None:
-
         if not self._ready or self._dragging or self._hovering == hovering:
-
             return
-
         self._hovering = hovering
-
         if hovering:
-
             self._mood_timer.stop()
-
             if self._hover:
-
                 self._pick_hover()
-
         else:
-
             if self._random:
-
                 self._mood_timer.start(MOOD_SWITCH_MS)
-
                 self._pick_random()
-
             elif self._hover:
-
                 self._pick_hover()
-
-
 
     def set_dragging(self, dragging: bool) -> None:
-
         if not self._ready or self._dragging == dragging:
-
             return
-
         self._dragging = dragging
-
         if dragging:
-
             self._mood_timer.stop()
-
             if self._drag:
-
                 self._pick_drag()
-
             elif self._hover:
-
                 self._pick_hover()
-
         else:
-
             if self._hovering and self._hover:
-
                 self._pick_hover()
-
             elif self._random:
-
                 self._mood_timer.start(MOOD_SWITCH_MS)
-
                 self._pick_random()
-
             elif self._hover:
-
                 self._pick_hover()
-
-
 
     def _pick_from_pool(
-
         self,
-
         pool: dict[str, _StateMedia],
-
         last_key: str | None,
-
     ) -> str:
-
         keys = list(pool.keys())
-
         if len(keys) > 1 and last_key in keys:
-
             keys = [k for k in keys if k != last_key]
-
         return random.choice(keys)
 
-
-
     def _pick_hover(self) -> None:
-
         if not self._hover:
-
             return
-
         name = self._pick_from_pool(self._hover, self._last_hover)
-
         self._last_hover = name
-
         self._show_state(self._hover[name])
 
-
-
     def _pick_drag(self) -> None:
-
         if not self._drag:
-
             return
-
         name = self._pick_from_pool(self._drag, self._last_drag)
-
         self._last_drag = name
-
         self._show_state(self._drag[name])
 
-
-
     def _pick_random(self) -> None:
-
         if not self._ready or self._hovering or self._dragging or not self._random:
-
             return
-
         keys = list(self._random.keys())
-
         if len(keys) > 1 and self._last_random in keys:
-
             keys = [k for k in keys if k != self._last_random]
-
         name = random.choice(keys)
-
         self._last_random = name
-
         self._show_state(self._random[name])
 
-
-
     def _show_state(self, media: _StateMedia, *, force: bool = False) -> None:
-
         if (
             not force
             and media.animate
@@ -490,107 +266,54 @@ class CharacterAssets(QObject):
             and media.gif.is_playing
         ):
             return
-
         self._stop_gif()
-
         if media.animate and media.gif:
-
             self._active_gif = media.gif
-
             media.gif.start(loop=True)
-
         elif not media.static.isNull():
-
             self._emit_pixmap(media.static)
 
-
-
     def _flip(self, pix: QPixmap) -> QPixmap:
-
         if self._facing >= 0:
-
             return pix
-
         return pix.transformed(QTransform().scale(-1, 1))
 
-
-
     def _emit_pixmap(self, pix: QPixmap) -> None:
-
         if pix.isNull():
-
             return
-
         self._current_pix = pix
-
         out = self._flip(pix)
-
         new_w, new_h = out.width(), out.height()
-
         if new_w != self._width or new_h != self._height:
-
             self._width = new_w
-
             self._height = new_h
-
             self.size_changed.emit(self._width, self._height)
-
         self.pixmap_changed.emit(out)
 
-
-
     def current_pixmap(self) -> QPixmap:
-
         if not self._current_pix.isNull():
-
             return self._flip(self._current_pix)
-
         media = None
-
         if self._dragging and self._drag:
-
             media = next(iter(self._drag.values()))
-
         elif self._hovering and self._hover:
-
             media = next(iter(self._hover.values()))
-
         elif self._random:
-
             media = next(iter(self._random.values()))
-
         elif self._hover:
-
             media = next(iter(self._hover.values()))
-
         if media and not media.static.isNull():
-
             return self._flip(media.static)
-
         return _make_placeholder_pixmap(self._facing)
 
-
-
     def tray_pixmap(self) -> QPixmap:
-
         media = self._first_media()
-
         src = media.static if media else QPixmap()
-
         if src.isNull():
-
             return _make_placeholder_pixmap(1).scaled(32, 32)
-
         return src.scaled(
-
             32,
-
             32,
-
             Qt.AspectRatioMode.KeepAspectRatio,
-
             Qt.TransformationMode.SmoothTransformation,
-
         )
-
-

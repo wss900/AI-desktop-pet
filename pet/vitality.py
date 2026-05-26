@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from config.pet_mode import is_survival_memory_mode, is_survival_mode
+from config.pet_mode import is_survival_memory_mode
 from memory.store import MemoryStore
 
 HP_MAX = float(os.getenv("VITALITY_HP_MAX", "12"))
@@ -30,7 +33,7 @@ class PetVitality(QObject):
     def __init__(self, memory: MemoryStore, parent=None, *, enabled: bool | None = None):
         super().__init__(parent)
         self._memory = memory
-        self._enabled = is_survival_mode() if enabled is None else enabled
+        self._enabled = True if enabled is None else enabled
         self._hp = HP_START
         self._starved = False
         self._revive_feeds = 0
@@ -115,6 +118,7 @@ class PetVitality(QObject):
         try:
             last = datetime.fromisoformat(raw_ts)
         except ValueError:
+            logger.warning("vitality: unparseable timestamp %r, skipping offline decay", raw_ts)
             return
         now = datetime.now()
         if now <= last:

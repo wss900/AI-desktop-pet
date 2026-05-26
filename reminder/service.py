@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from datetime import datetime
 from typing import Callable
 
@@ -31,7 +32,8 @@ class ReminderService:
         self._scheduler = BackgroundScheduler()
         self._scheduler.start()
 
-    def _connect(self) -> sqlite3.Connection:
+    @staticmethod
+    def _connect() -> sqlite3.Connection:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         _init_reminder_db(conn)
@@ -42,7 +44,7 @@ class ReminderService:
         if dt.tzinfo:
             dt = dt.replace(tzinfo=None)
         iso = dt.isoformat(timespec="seconds")
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             cur = conn.execute(
                 "INSERT INTO reminders (title, trigger_at) VALUES (?, ?)",
                 (title, iso),
@@ -63,12 +65,12 @@ class ReminderService:
         self._scheduler.add_job(fire, "date", run_date=dt, id=job_id, replace_existing=True)
 
     def _mark_done(self, rid: int) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             conn.execute("UPDATE reminders SET done = 1 WHERE id = ?", (rid,))
             conn.commit()
 
     def list_pending(self) -> list[dict]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             rows = conn.execute(
                 "SELECT id, title, trigger_at FROM reminders WHERE done = 0 ORDER BY trigger_at"
             ).fetchall()
@@ -80,7 +82,7 @@ class ReminderService:
             self._scheduler.remove_job(job_id)
         except Exception:
             pass
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             cur = conn.execute("DELETE FROM reminders WHERE id = ? AND done = 0", (rid,))
             conn.commit()
             return cur.rowcount > 0
@@ -88,7 +90,7 @@ class ReminderService:
     def load_pending_jobs(self) -> None:
         """Schedule future reminders; mark overdue ones done without notifying."""
         now = datetime.now()
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             rows = conn.execute(
                 "SELECT id, title, trigger_at FROM reminders WHERE done = 0"
             ).fetchall()

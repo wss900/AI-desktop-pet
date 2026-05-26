@@ -50,11 +50,6 @@ def is_entertainment_run_mode() -> bool:
     return resolve_run_mode() == "entertainment"
 
 
-def is_survival_mode() -> bool:
-    """两种模式均有 HP / 喂食。"""
-    return True
-
-
 def is_survival_mode_value(value: str) -> bool:
     """兼容旧测试与迁移逻辑。"""
     return value.strip().lower() not in LEGACY_NORMAL_ALIASES

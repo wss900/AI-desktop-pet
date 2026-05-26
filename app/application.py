@@ -28,7 +28,7 @@ from config.companion import (
     companion_startup_greeting_enabled,
     memory_recent_limit,
 )
-from config.pet_mode import is_survival_mode, mode_display_name
+from config.pet_mode import mode_display_name
 from config.settings import (
     APP_ICON_PATH,
     PET_HEIGHT,
@@ -99,7 +99,7 @@ class DesktopPetApp(QObject):
         w = self.character.width if use_sprites else PET_WIDTH
         h = self.character.height if use_sprites else PET_HEIGHT
         self.controller = PetController(w, h, walk_enabled=not use_sprites)
-        self._survival_mode = is_survival_mode()
+        self._survival_mode = True
         self.vitality = PetVitality(self.memory, enabled=self._survival_mode)
         self._food_window = None
 
@@ -107,7 +107,6 @@ class DesktopPetApp(QObject):
             self.controller,
             character=self.character if use_sprites else None,
             on_open_chat=self.open_chat,
-            on_pack_dropped=self.import_pack_from_folder,
             on_spawn_food=self._spawn_food if self._survival_mode else None,
             on_advance_hour=self._advance_one_hour if self._survival_mode else None,
             survival_mode=self._survival_mode,

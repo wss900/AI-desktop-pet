@@ -37,18 +37,7 @@ class SwitchPackDialog(QDialog):
         )
         self.setMinimumSize(420, 380)
         apply_dialog_light_theme(self)
-        self.setStyleSheet(
-            picker_dialog_stylesheet()
-            + """
-            QLabel#sectionTitle { font-size: 14px; font-weight: bold; }
-            QLabel#hint { font-size: 11px; color: #8B7355; }
-            QLabel#previewBox {
-                border: 1px solid #E8D5B5;
-                border-radius: 8px;
-                background: #FFFCF7;
-            }
-            """
-        )
+        self.setStyleSheet(picker_dialog_stylesheet())
 
         root = QVBoxLayout(self)
         root.setContentsMargins(16, 16, 16, 16)

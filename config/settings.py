@@ -1,12 +1,9 @@
 import os
 
-from dotenv import load_dotenv
-
 from config.paths import app_root, resolve_resource_path, resource_root
 
 ROOT = app_root()
 RESOURCE_ROOT = resource_root()
-load_dotenv(ROOT / ".env")
 
 DATA_DIR = ROOT / "data"
 DATA_DIR.mkdir(exist_ok=True)

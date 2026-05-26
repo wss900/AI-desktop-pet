@@ -2,15 +2,10 @@ from config.pet_mode import (
     is_companion_run_mode,
     is_entertainment_run_mode,
     is_survival_memory_mode,
-    is_survival_mode,
     pet_mode_env_value,
     resolve_run_mode,
     run_mode_env_updates,
 )
-
-
-def test_is_survival_always_on():
-    assert is_survival_mode()
 
 
 def test_resolve_companion():

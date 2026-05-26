@@ -38,6 +38,30 @@ def style_list_item(item: QListWidgetItem) -> None:
 def picker_dialog_stylesheet() -> str:
     return f"""
             QDialog {{ background: {BG_DIALOG}; color: {TEXT_PRIMARY}; }}
+            QWidget#scrollContent {{
+                background: {BG_DIALOG};
+                color: {TEXT_PRIMARY};
+            }}
+            QScrollArea {{
+                background: {BG_DIALOG};
+                border: none;
+            }}
+            QScrollArea > QWidget > QWidget {{
+                background: {BG_DIALOG};
+            }}
+            QScrollBar:vertical {{
+                background: {BG_DIALOG};
+                width: 10px;
+                margin: 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {BORDER};
+                border-radius: 5px;
+                min-height: 24px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0;
+            }}
             QListWidget {{
                 background: {BG_INPUT};
                 color: {TEXT_PRIMARY};
@@ -76,6 +100,28 @@ def picker_dialog_stylesheet() -> str:
                 color: {TEXT_PRIMARY};
             }}
             QLabel#modeHint {{ font-size: 11px; color: {TEXT_SECONDARY}; }}
+            QLabel#hint {{ font-size: 11px; color: {TEXT_SECONDARY}; }}
+            QLabel#sectionTitle {{ font-size: 14px; font-weight: bold; color: {TEXT_PRIMARY}; }}
+            QFrame#importBlock {{
+                border: 1px solid {BORDER};
+                border-radius: 8px;
+                background: #FFFCF7;
+            }}
+            QFrame#importDropZone {{
+                border: 1px dashed {BORDER};
+                border-radius: 8px;
+                background: {BG_INPUT};
+                min-height: 52px;
+            }}
+            QFrame#importDropZone[dragOver="true"] {{
+                border: 2px dashed {ACCENT};
+                background: {BG_LIST_ITEM_SELECTED};
+            }}
+            QFrame#importDropZone QLabel {{
+                color: {TEXT_SECONDARY};
+                font-size: 11px;
+                padding: 8px;
+            }}
             QPushButton {{
                 background: {ACCENT};
                 color: white;
@@ -126,9 +172,25 @@ def picker_dialog_stylesheet() -> str:
 
 def apply_dialog_light_theme(dialog: QWidget) -> None:
     """Force light palette on dialog (Windows 深色系统主题下也可读)."""
-    pal = dialog.palette()
+    _apply_light_palette(dialog, BG_DIALOG)
+
+
+def apply_content_light_theme(widget: QWidget) -> None:
+    """Scroll 内容区、子面板等与弹窗一致的浅色底。"""
+    widget.setObjectName("scrollContent")
+    _apply_light_palette(widget, BG_DIALOG)
+
+
+def _apply_light_palette(widget: QWidget, bg_hex: str) -> None:
+    pal = widget.palette()
     text = QColor(TEXT_PRIMARY)
-    pal.setColor(QPalette.ColorRole.Window, QColor(BG_DIALOG))
+    bg = QColor(bg_hex)
+    pal.setColor(QPalette.ColorRole.Window, bg)
     pal.setColor(QPalette.ColorRole.WindowText, text)
     pal.setColor(QPalette.ColorRole.Text, text)
-    dialog.setPalette(pal)
+    pal.setColor(QPalette.ColorRole.Base, QColor(BG_INPUT))
+    pal.setColor(QPalette.ColorRole.Button, bg)
+    pal.setColor(QPalette.ColorRole.ButtonText, text)
+    pal.setColor(QPalette.ColorRole.PlaceholderText, QColor(TEXT_SECONDARY))
+    widget.setPalette(pal)
+    widget.setAutoFillBackground(True)

@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Callable
 
 from PySide6.QtCore import QPoint, Qt, QRect
-from PySide6.QtGui import QColor, QDragEnterEvent, QDropEvent, QPixmap
+from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWidgets import QLabel, QMenu, QVBoxLayout, QWidget
 
 from app.feed_popup import FeedPopupLabel
 from app.speech_bubble import SpeechBubbleLabel
 from app.hp_bar import HpBarWidget
 from config.settings import PET_HEIGHT, PET_WIDTH
-from config.pet_mode import is_survival_mode
 from pet.character_assets import CharacterAssets
 from pet.controller import PetController
 from pet.vitality_art import make_skeleton_pixmap
@@ -25,7 +23,6 @@ class PetWindow(QWidget):
         controller: PetController,
         character: CharacterAssets | None = None,
         on_open_chat=None,
-        on_pack_dropped=None,
         on_spawn_food: Callable[[], None] | None = None,
         on_advance_hour: Callable[[], None] | None = None,
         survival_mode: bool | None = None,
@@ -35,11 +32,10 @@ class PetWindow(QWidget):
         self._controller = controller
         self._character = character
         self._on_open_chat = on_open_chat
-        self._on_pack_dropped = on_pack_dropped
         self._on_spawn_food = on_spawn_food
         self._on_advance_hour = on_advance_hour
         self._survival_mode = (
-            is_survival_mode() if survival_mode is None else survival_mode
+            True if survival_mode is None else survival_mode
         )
         self._drag_offset: QPoint | None = None
         self._starved = False
@@ -53,7 +49,6 @@ class PetWindow(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setMouseTracking(True)
-        self.setAcceptDrops(True)
         tip = "左键拖动 · 双击聊天"
         if self._survival_mode:
             tip = "右键：生成食物 / 加速一小时\n" + tip
@@ -220,44 +215,6 @@ class PetWindow(QWidget):
 
     def _on_position(self, x: int, y: int) -> None:
         self.move(x, y)
-
-    def _local_path_from_drop(self, event) -> Path | None:
-        if not event.mimeData().hasUrls():
-            return None
-        for url in event.mimeData().urls():
-            if not url.isLocalFile():
-                continue
-            path = Path(url.toLocalFile())
-            if path.exists():
-                return path
-        return None
-
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
-        path = self._local_path_from_drop(event)
-        if path and self._on_pack_dropped and (
-            path.is_dir()
-            or path.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
-        ):
-            event.acceptProposedAction()
-            return
-        event.ignore()
-
-    def dragMoveEvent(self, event) -> None:
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-        else:
-            event.ignore()
-
-    def dropEvent(self, event: QDropEvent) -> None:
-        path = self._local_path_from_drop(event)
-        if path and self._on_pack_dropped and (
-            path.is_dir()
-            or path.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
-        ):
-            self._on_pack_dropped(path)
-            event.acceptProposedAction()
-            return
-        event.ignore()
 
     def enterEvent(self, event):
         if self._character and not self._starved:

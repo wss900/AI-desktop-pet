@@ -29,7 +29,11 @@ from config.chat_api_config import (
     load_chat_api_config,
 )
 from config.env_update import should_show_character_picker
-from app.dialog_theme import apply_dialog_light_theme, picker_dialog_stylesheet
+from app.dialog_theme import (
+    apply_content_light_theme,
+    apply_dialog_light_theme,
+    picker_dialog_stylesheet,
+)
 from config.character_config import (
     CHARACTER_MAX_HEIGHT,
     CHARACTER_SIZE_MAX,
@@ -69,13 +73,7 @@ class SettingsDialog(QDialog):
         self.setMinimumWidth(520)
         self.setMinimumHeight(560)
         apply_dialog_light_theme(self)
-        self.setStyleSheet(
-            picker_dialog_stylesheet()
-            + """
-            QLabel#sectionTitle { font-size: 14px; font-weight: bold; }
-            QLabel#hint { font-size: 11px; }
-            """
-        )
+        self.setStyleSheet(picker_dialog_stylesheet())
 
         root = QVBoxLayout(self)
         root.setContentsMargins(16, 16, 16, 16)
@@ -85,7 +83,9 @@ class SettingsDialog(QDialog):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        apply_content_light_theme(scroll.viewport())
         content = QWidget()
+        apply_content_light_theme(content)
         body = QVBoxLayout(content)
         body.setContentsMargins(0, 0, 4, 0)
         body.setSpacing(10)

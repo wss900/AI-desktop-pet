@@ -1,4 +1,4 @@
-"""导入形象弹窗：形象包 / 人设 / 食物 三条路径。"""
+"""导入形象弹窗：统一拖放判定 + 手动按钮。"""
 
 from __future__ import annotations
 
@@ -6,8 +6,10 @@ from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
     QDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -16,6 +18,82 @@ from PySide6.QtWidgets import (
 )
 
 from app.dialog_theme import apply_dialog_light_theme, picker_dialog_stylesheet
+from pet.pack_import_classify import can_accept_import_drop, plan_import_drops
+
+
+class _ImportDropZone(QFrame):
+    """统一拖放区：自动识别形象包 / 人设 / 食物。"""
+
+    def __init__(
+        self,
+        hint: str,
+        *,
+        on_drop: Callable[[list[Path]], None],
+        parent: QWidget | None = None,
+    ):
+        super().__init__(parent)
+        self._on_drop = on_drop
+        self.setObjectName("importDropZone")
+        self.setAcceptDrops(True)
+        self.setProperty("dragOver", False)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 8, 10, 8)
+        label = QLabel(hint)
+        label.setObjectName("hint")
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+
+    def _paths_from_event(self, event) -> list[Path]:
+        mime = event.mimeData()
+        if not mime.hasUrls():
+            return []
+        paths: list[Path] = []
+        for url in mime.urls():
+            if not url.isLocalFile():
+                continue
+            path = Path(url.toLocalFile())
+            if path.exists():
+                paths.append(path)
+        return paths
+
+    def _set_drag_over(self, active: bool) -> None:
+        if self.property("dragOver") == active:
+            return
+        self.setProperty("dragOver", active)
+        self.style().unpolish(self)
+        self.style().polish(self)
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        paths = self._paths_from_event(event)
+        if paths and can_accept_import_drop(paths):
+            event.acceptProposedAction()
+            self._set_drag_over(True)
+            return
+        event.ignore()
+
+    def dragMoveEvent(self, event) -> None:
+        paths = self._paths_from_event(event)
+        if paths and can_accept_import_drop(paths):
+            event.acceptProposedAction()
+            self._set_drag_over(True)
+        else:
+            event.ignore()
+            self._set_drag_over(False)
+
+    def dragLeaveEvent(self, event) -> None:
+        self._set_drag_over(False)
+        super().dragLeaveEvent(event)
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        self._set_drag_over(False)
+        paths = self._paths_from_event(event)
+        if paths and can_accept_import_drop(paths):
+            self._on_drop(paths)
+            event.acceptProposedAction()
+            return
+        event.ignore()
 
 
 class ImportPackDialog(QDialog):
@@ -31,19 +109,7 @@ class ImportPackDialog(QDialog):
         )
         self.setMinimumWidth(460)
         apply_dialog_light_theme(self)
-        self.setStyleSheet(
-            picker_dialog_stylesheet()
-            + """
-            QLabel#sectionTitle { font-size: 14px; font-weight: bold; }
-            QLabel#hint { font-size: 11px; color: #8B7355; }
-            QFrame#importBlock {
-                border: 1px solid #E8D5B5;
-                border-radius: 8px;
-                background: #FFFCF7;
-                padding: 8px;
-            }
-            """
-        )
+        self.setStyleSheet(picker_dialog_stylesheet())
 
         root = QVBoxLayout(self)
         root.setContentsMargins(16, 16, 16, 16)
@@ -58,6 +124,15 @@ class ImportPackDialog(QDialog):
         target_lbl.setObjectName("hint")
         target_lbl.setWordWrap(True)
         root.addWidget(target_lbl)
+
+        root.addWidget(
+            _ImportDropZone(
+                "拖放文件或文件夹到此处，自动识别：\n"
+                "· 仅人设 / 仅食物 → 写入当前形象包\n"
+                "· 含立绘的完整包（或立绘+人设+食物）→ 导入新形象并切换",
+                on_drop=self._on_smart_drop,
+            )
+        )
 
         root.addWidget(self._block(
             "1. 新形象文件夹",
@@ -90,14 +165,21 @@ class ImportPackDialog(QDialog):
         btn_row.addWidget(close_btn)
         root.addLayout(btn_row)
 
+    def _on_smart_drop(self, paths: list[Path]) -> None:
+        plan = plan_import_drops(paths)
+        if plan.pack:
+            self.import_pack_requested.emit(plan.pack)
+        if plan.persona:
+            self.import_persona_requested.emit(plan.persona)
+        if plan.food:
+            self.import_food_requested.emit(plan.food)
+
     def _block(
         self,
         title: str,
         hint: str,
-        buttons: list[tuple[str, callable]],
+        buttons: list[tuple[str, Callable[[], None]]],
     ) -> QWidget:
-        from PySide6.QtWidgets import QFrame
-
         frame = QFrame()
         frame.setObjectName("importBlock")
         layout = QVBoxLayout(frame)
@@ -169,13 +251,3 @@ class ImportPackDialog(QDialog):
         )
         if folder:
             self.import_food_requested.emit(Path(folder))
-
-
-def run_import_pack_dialog(
-    *,
-    target_pack: str = "",
-    parent: QWidget | None = None,
-) -> ImportPackDialog:
-    dlg = ImportPackDialog(target_pack=target_pack, parent=parent)
-    dlg.exec()
-    return dlg

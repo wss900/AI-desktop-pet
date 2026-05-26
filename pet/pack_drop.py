@@ -29,7 +29,11 @@ def resolve_pack_folder(drop_path: Path) -> Path | None:
         return path
 
     subdirs = sorted(
-        d for d in path.iterdir() if d.is_dir() and not d.name.startswith(".")
+        d
+        for d in path.iterdir()
+        if d.is_dir()
+        and not d.name.startswith(".")
+        and d.name not in ("食物", "food", "Food", "foods")
     )
     packs = [d for d in subdirs if _has_sprite_files(d)]
     if len(packs) == 1:

@@ -1,6 +1,5 @@
 import sqlite3
 import threading
-from contextlib import contextmanager
 
 from config.settings import DB_PATH
 
@@ -17,13 +16,6 @@ def _init_db(conn: sqlite3.Connection) -> None:
             content TEXT NOT NULL,
             created_at TEXT DEFAULT (datetime('now','localtime'))
         );
-        CREATE TABLE IF NOT EXISTS reminders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            trigger_at TEXT NOT NULL,
-            done INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now','localtime'))
-        );
         CREATE TABLE IF NOT EXISTS chat_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             role TEXT NOT NULL,
@@ -33,18 +25,6 @@ def _init_db(conn: sqlite3.Connection) -> None:
         """
     )
     conn.commit()
-
-
-@contextmanager
-def get_conn():
-    """Short-lived connection (safe from any thread). Used by ReminderService."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    try:
-        _init_db(conn)
-        yield conn
-    finally:
-        conn.close()
 
 
 class MemoryStore:
